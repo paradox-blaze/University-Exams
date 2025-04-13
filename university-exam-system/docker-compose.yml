@@ -44,20 +44,10 @@ services:
       - backend
 
   # Evaluation Service
-  evaluation-service:
-    build: ./services/evaluation-service
+  re-evaluation-service:
+    build: ./services/re-evaluation-service
     ports:
       - "8003:8003"
-    depends_on:
-      - mongodb
-    networks:
-      - backend
-
-  # Create Questions Service
-  questions-service:
-    build: ./services/questions-service
-    ports:
-      - "8004:8004"
     depends_on:
       - mongodb
     networks:
@@ -76,8 +66,7 @@ services:
       - admin-service
       - student-service
       - teacher-service
-      - evaluation-service
-      - questions-service
+      - re-evaluation-service
     networks:
       - backend
 

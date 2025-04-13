@@ -77,6 +77,20 @@ class ResultOut(BaseModel):
 
 # Routes
 
+@app.get("/students")
+def get_students():
+    students = db.students.find()
+    return [
+        {
+            "id": str(s["_id"]),
+            "name": s["name"],
+            "email": s["email"],
+            "rollNumber": s["rollNumber"],
+            "class": s["class"]
+        }
+        for s in students
+    ]
+
 @app.get("/exams")
 def get_exams_for_student(student_id: str):
     # Get the student's courses

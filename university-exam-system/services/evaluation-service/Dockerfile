@@ -17,4 +17,4 @@ COPY . .
 EXPOSE 8000
 
 # Set the environment variable for FastAPI to run the app with Uvicorn
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8003"]

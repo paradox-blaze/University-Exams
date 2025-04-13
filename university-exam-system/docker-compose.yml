@@ -1,19 +1,18 @@
 version: "3.8"
 
 services:
-  # MongoDB Service
   mongodb:
     image: mongo:latest
-    container_name: mongodb
-    ports:
-      - "27017:27017"  # Expose MongoDB default port
+    container_name: mongo_db
     volumes:
-      - mongo-data:/data/db  # Use Docker volume for persistent storage
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: root  # Optional: Username for MongoDB
-      MONGO_INITDB_ROOT_PASSWORD: example  # Optional: Password for MongoDB
+      - ./data/db:/data/db                  # MongoDB data volume
+      - ./data/initdb.d/init.js:/docker-entrypoint-initdb.d/init.js  # Mount init.js for initialization
+    ports:
+      - "27017:27017"
     networks:
       - backend
+    restart: always
+
 
   # Other services (admin-service, student-service, etc.)
   admin-service:

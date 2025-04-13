@@ -5,7 +5,7 @@ services:
     image: mongo:latest
     container_name: mongo_db
     volumes:
-      - ./data/db:/data/db # MongoDB data volume
+      - ./mongo-data:/data/db # MongoDB data volume
       - ./data/initdb.d/init.js:/docker-entrypoint-initdb.d/init.js # Mount init.js for initialization
     ports:
       - "27017:27017"
@@ -64,15 +64,6 @@ services:
       - backend
 
   # Auth Service (Optional)
-  auth-service:
-    build: ./services/auth-service
-    ports:
-      - "8005:8005"
-    depends_on:
-      - mongodb
-    networks:
-      - backend
-
   # Reverse Proxy: Nginx
   nginx:
     image: nginx:latest
@@ -86,8 +77,7 @@ services:
       - student-service
       - teacher-service
       - evaluation-service
-      - create-questions-service
-      - auth-service
+      - questions-service
     networks:
       - backend
 

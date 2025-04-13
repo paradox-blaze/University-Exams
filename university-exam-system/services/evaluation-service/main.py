@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pymongo import MongoClient
 import os
+import uvicorn
 
 # MongoDB connection URL
 mongo_url = os.getenv("MONGO_URL", "mongodb://mongodb:27017")
@@ -39,3 +40,6 @@ def get_results(exam_id: str):
     if not exam:
         raise HTTPException(status_code=404, detail="Exam not found")
     return {"exam_id": exam_id, "results": exam.get("results", [])}
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8003, reload=True)

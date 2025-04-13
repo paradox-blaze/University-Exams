@@ -3,6 +3,7 @@ from pymongo import MongoClient
 from pydantic import BaseModel
 from bson import ObjectId
 import os
+import uvicorn
 
 # MongoDB connection URL
 mongo_url = os.getenv("MONGO_URL", "mongodb://mongodb:27017")
@@ -59,3 +60,6 @@ def delete_student(id: str):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Student not found")
     return {"message": "Student deleted successfully!"}
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)

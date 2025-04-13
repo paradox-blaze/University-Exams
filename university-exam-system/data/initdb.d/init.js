@@ -43,18 +43,31 @@ if (students.countDocuments() === 0) {
     ]);
 
     questions.insertMany([
-        {
-            question_text: "Which data structure uses LIFO?",
-            options: ["Queue", "Stack", "Linked List"],
-            answer: "Stack",
-            exam_id: exam1
-        },
-        {
-            question_text: "Which protocol is used for secure communication over the internet?",
-            options: ["HTTP", "FTP", "HTTPS"],
-            answer: "HTTPS",
-            exam_id: exam2
-        }
+        
+            {
+                "question_text": "Which data structure uses LIFO?",
+                "options": ["Queue", "Stack", "Linked List"],
+                "correct_option": "Stack",
+                "question_type": "mcq",
+                "marks": 1,
+                "exam_id": "exam1"
+            },
+            {
+                "question_text": "Which protocol is used for secure communication over the internet?",
+                "options": ["HTTP", "FTP", "HTTPS"],
+                "correct_option": "HTTPS",
+                "question_type": "mcq",
+                "marks": 1,
+                "exam_id": "exam2"
+            },
+            {
+                "question_text": "Explain the differences between stack and queue with real-life examples.",
+                "question_type": "long",
+                "marks": 5,
+                "exam_id": "exam1"
+            }
+        
+        
     ]);
 
     // Create indexes

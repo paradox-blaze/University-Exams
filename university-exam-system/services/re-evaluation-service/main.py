@@ -118,4 +118,4 @@ def get_reval_request_status(request_id: str):
 
 # Run the application
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8004, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8003, reload=True)

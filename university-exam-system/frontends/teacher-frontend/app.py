@@ -1,292 +1,220 @@
 import streamlit as st
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime
+import pandas as pd
 
-API_URL = "http://localhost:80/teacher/"   # FastAPI service endpoint
+API_URL = "http://localhost:80/"
 
 st.set_page_config(page_title="Teacher Portal", page_icon="👩‍🏫", layout="wide")
 st.title("👩‍🏫 Teacher Portal")
 
-# Mock teacher ID for demonstration
-# In a real app, this would come from the login system
-if "teacher_id" not in st.session_state:
-    st.session_state.teacher_id = "67fc99737e9d30613b65d0fb"  # Example teacher ID
+# Initialize session state
+st.session_state.setdefault("teacher_id", "teacher1")
 
-# Navigation
+# Sidebar navigation
 page = st.sidebar.selectbox("Choose Section", [
-    "📚 My Exams",
+    "🏠 Home",
     "📝 Create Exam",
     "❓ Manage Questions",
     "📊 Grade Responses"
 ])
 
-# Utility functions
-def format_datetime(dt):
-    return dt.strftime("%Y-%m-%d %H:%M")
+# ===========================
+# UTILITIES
+# ===========================
 
-# 1. MY EXAMS SECTION
-if page == "📚 My Exams":
-    st.header("📚 My Exams")
-    
+def format_datetime(dt_str):
+    return datetime.fromisoformat(dt_str).strftime("%Y-%m-%d %H:%M")
+
+def get_teacher_name_by_id(teacher_id):
     try:
-        # Fetch exams created by the teacher
-        response = requests.get(f"{API_URL}/exams?teacher_id={st.session_state.teacher_id}")
-        
-        if response.status_code == 200:
-            exams = response.json()
-            
-            if not exams:
-                st.info("You haven't created any exams yet.")
-            else:
-                # Display exams in tabs by status
-                statuses = ["scheduled", "live", "ended"]
-                tabs = st.tabs(["📆 Scheduled", "🔴 Live", "✅ Ended"])
-                
-                for i, status in enumerate(statuses):
-                    with tabs[i]:
-                        filtered_exams = [exam for exam in exams if exam["status"] == status]
-                        
-                        if not filtered_exams:
-                            st.info(f"No {status} exams.")
-                        else:
-                            for exam in filtered_exams:
-                                with st.expander(f"{exam['title']} ({exam['status'].upper()})"):
-                                    col1, col2 = st.columns(2)
-                                    
-                                    with col1:
-                                        st.write(f"**ID:** {exam['id']}")
-                                        st.write(f"**Subject ID:** {exam['subjectId']}")
-                                        st.write(f"**Status:** {exam['status'].upper()}")
-                                    
-                                    with col2:
-                                        st.write(f"**Start Time:** {exam['startTime']}")
-                                        st.write(f"**End Time:** {exam['endTime']}")
-                                        st.write(f"**Duration:** {exam['durationMinutes']} minutes")
-                                    
-                                    st.write(f"**Published:** {'Yes' if exam['isPublished'] else 'No'}")
-                                    
-                                    # Add buttons to view questions or toggle publish status
-                                    if st.button(f"View Questions for {exam['title']}", key=f"view_{exam['id']}"):
-                                        st.session_state.selected_exam_id = exam['id']
-                                        st.session_state.selected_exam_title = exam['title']
-                                        st.experimental_rerun()
-        else:
-            st.error(f"Failed to fetch exams: {response.text}")
-            
+        res = requests.get(f"{API_URL}/teacher/get_name", params={"id": teacher_id})
+        if res.status_code == 200:
+            return res.json().get("teacher_name", "Unknown Teacher")
+    except Exception:
+        pass
+    return "Unknown Teacher"
+
+def fetch_data(url, params=None):
+    try:
+        res = requests.get(url, params=params)
+        if res.status_code == 200:
+            return res.json()
     except Exception as e:
-        st.error(f"An error occurred: {str(e)}")
+        st.error(f"Error fetching data from {url}: {e}")
+    return None
 
-# 2. CREATE EXAM SECTION
-elif page == "📝 Create Exam":
-    st.header("📝 Create New Exam")
-    
-    with st.form("create_exam_form"):
-        title = st.text_input("Exam Title", placeholder="Enter exam title")
-        subject_id = st.text_input("Subject ID", placeholder="Enter subject ID")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            start_date = st.date_input("Start Date")
-            start_time = st.time_input("Start Time")
-        with col2:
-            end_date = st.date_input("End Date")
-            end_time = st.time_input("End Time")
-        
-        # Combine date and time
-        start_datetime = datetime.combine(start_date, start_time)
-        end_datetime = datetime.combine(end_date, end_time)
-        
-        duration = st.number_input("Duration (minutes)", min_value=5, max_value=240, value=60)
-        publish = st.checkbox("Publish Exam", value=False)
-        
-        submit_button = st.form_submit_button("Create Exam")
-        
-        if submit_button:
-            if not title or not subject_id:
-                st.error("Please fill in all required fields.")
-            elif end_datetime <= start_datetime:
-                st.error("End time must be after start time.")
-            else:
-                try:
-                    # Format datetime for API
-                    start_iso = start_datetime.isoformat()
-                    end_iso = end_datetime.isoformat()
-                    
-                    # Prepare payload
-                    payload = {
-                        "title": title,
-                        "subjectId": subject_id,
-                        "startTime": start_iso,
-                        "endTime": end_iso,
-                        "durationMinutes": duration,
-                        "createdBy": st.session_state.teacher_id,
-                        "isPublished": publish
-                    }
-                    
-                    # Make API call
-                    response = requests.post(f"{API_URL}/exams", json=payload)
-                    
-                    if response.status_code == 200:
-                        st.success("Exam created successfully!")
-                        st.json(response.json())
-                    else:
-                        st.error(f"Failed to create exam: {response.text}")
-                
-                except Exception as e:
-                    st.error(f"An error occurred: {str(e)}")
+def get_question_text(question_id):
+    try:
+        # Call the API
+        res = fetch_data(f"{API_URL}/teacher/question/get", params={"id": question_id})
 
-# 3. MANAGE QUESTIONS SECTION
-elif page == "❓ Manage Questions":
-    st.header("❓ Manage Questions")
-    
-    # Get exam ID either from URL parameter or input field
-    if "selected_exam_id" in st.session_state:
-        exam_id = st.session_state.selected_exam_id
-        st.info(f"Working with exam: {st.session_state.selected_exam_title}")
+        # Ensure the response contains the questionText
+        if res and "questionText" in res:
+            return res["questionText"]
+        else:
+            print("No 'questionText' found in response.")
+            return "[Question not found]"
+
+    except Exception as e:
+        print(f"Error fetching question: {e}")
+        return "[Error fetching question]"
+
+# ===========================
+# HOME PAGE
+# ===========================
+
+if page == "🏠 Home":
+    st.header("🏠 My Subjects")
+    subjects = fetch_data(f"{API_URL}/teacher/subjects", params={"teacher_id": st.session_state.teacher_id})
+
+    if not subjects:
+        st.info("You are not assigned to any subjects.")
     else:
-        exam_id = st.text_input("Enter Exam ID", placeholder="Enter the exam ID to manage questions")
-    
-    if exam_id:
-        # Fetch existing questions for this exam
-        try:
-            response = requests.get(f"{API_URL}/exams/{exam_id}/questions")
-            
-            if response.status_code == 200:
-                questions = response.json()
-                
-                # Display existing questions
-                st.subheader("Existing Questions")
-                if not questions:
-                    st.info("No questions added to this exam yet.")
-                else:
-                    for i, q in enumerate(questions):
-                        with st.expander(f"Question {i+1}: {q['questionText'][:50]}..."):
-                            st.write(f"**Question:** {q['questionText']}")
-                            st.write(f"**Type:** {q['type']}")
-                            st.write(f"**Marks:** {q['marks']}")
-                            
-                            if q['type'] == "mcq":
-                                st.write("**Options:**")
-                                for j, opt in enumerate(q['options']):
-                                    st.write(f"{j+1}. {opt}{' ✓' if j == q['correctAnswerIndex'] else ''}")
-                            else:  # Long answer
-                                st.write("**Expected Keywords:**")
-                                st.write(", ".join(q['expectedKeywords']))
-                
-                # Add new question form
-                st.subheader("Add New Question")
-                with st.form("add_question_form"):
-                    question_text = st.text_area("Question Text", placeholder="Enter the question text")
-                    question_type = st.selectbox("Question Type", ["mcq", "long"])
-                    marks = st.number_input("Marks", min_value=1, max_value=20)
-                    
-                    if question_type == "mcq":
-                        st.write("Enter Options (one per line)")
-                        options_text = st.text_area("Options", placeholder="Enter each option on a new line")
-                        correct_index = st.number_input("Correct Option Index (0-based)", min_value=0, max_value=10)
-                        expected_keywords = None
-                    else:  # Long answer
-                        options_text = None
-                        correct_index = None
-                        expected_keywords = st.text_input("Expected Keywords (comma separated)", placeholder="keyword1, keyword2, ...")
-                    
-                    submit_button = st.form_submit_button("Add Question")
-                    
-                    if submit_button:
-                        try:
-                            # Prepare payload
-                            payload = {
-                                "questionText": question_text,
-                                "type": question_type,
-                                "marks": marks
-                            }
-                            
-                            if question_type == "mcq":
-                                options = [opt.strip() for opt in options_text.split("\n") if opt.strip()]
-                                payload["options"] = options
-                                payload["correctAnswerIndex"] = int(correct_index)
-                            else:  # Long answer
-                                keywords = [kw.strip() for kw in expected_keywords.split(",") if kw.strip()]
-                                payload["expectedKeywords"] = keywords
-                            
-                            # Make API call
-                            response = requests.post(f"{API_URL}/exams/{exam_id}/questions", json=payload)
-                            
-                            if response.status_code == 200:
-                                st.success("Question added successfully!")
-                                st.experimental_rerun()
-                            else:
-                                st.error(f"Failed to add question: {response.text}")
-                        
-                        except Exception as e:
-                            st.error(f"An error occurred: {str(e)}")
-            
-            else:
-                st.error(f"Failed to fetch questions: {response.text}")
-        
-        except Exception as e:
-            st.error(f"An error occurred: {str(e)}")
+        for subject in subjects:
+            subject_name = subject['name']
+            subject_code = subject['code']
+            teacher_names = [get_teacher_name_by_id(tid) for tid in subject['teacherIds']]
+            label = f"{subject_name} ({subject_code}) - Teachers: {', '.join(teacher_names)}"
+            if st.button(label, key=f"subject_{subject['id']}"):
+                st.session_state.selected_subject = subject
+                st.session_state.pop("selected_class", None)
+                st.rerun()
 
-# 4. GRADE RESPONSES SECTION
-elif page == "📊 Grade Responses":
-    st.header("📊 Grade Responses")
+# ===========================
+# SUBJECT DETAIL PAGE
+# ===========================
+
+if "selected_subject" in st.session_state and page == "🏠 Home" and "selected_class" not in st.session_state:
+    subject = st.session_state.selected_subject
+    st.header(f"📘 {subject['name']} ({subject['code']})")
+
+    # ===== Exams Section =====
+    st.subheader("🧾 Exams")
+    exams = fetch_data(f"{API_URL}/teacher/exams", params={"subject_id": subject['id']})
+    st.button("➕ Create New Exam", key="create_exam_btn")
+
+    if not exams:
+        st.info("No exams yet.")
+    else:
+        for exam in exams:
+            with st.expander(f"{exam['title']} ({exam['status'].upper()})"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write(f"**Start:** {format_datetime(exam['startTime'])}")
+                    st.write(f"**End:** {format_datetime(exam['endTime'])}")
+                with col2:
+                    st.write(f"**Status:** {exam['status'].capitalize()}")
+                    st.write(f"**Published:** {'Yes' if exam['isPublished'] else 'No'}")
+
+                c1, c2, c3, c4 = st.columns(4)
+                with c1:
+                    st.button("✏️ Evaluate", key=f"eval_{exam['id']}", disabled=exam["status"] != "ended")
+                with c2:
+                    st.button("♻️ Re-evaluate", key=f"reval_{exam['id']}", disabled=exam["status"] != "ended")
+                with c3:
+                    st.button("❌ Delete", key=f"delete_{exam['id']}", disabled=exam["status"] == "live")
+                with c4:
+                    st.button("📄 Questions", key=f"view_questions_{exam['id']}")
+
+    # ===== Classes Section =====
+    # ===== Classes Section =====
+    st.subheader("🏫 Classes Taking This Subject")
+    classes = fetch_data(f"{API_URL}/teacher/subject-classes", params={"subject_id": subject['id']})
+    if not classes:
+        st.info("No classes found.")
+    else:
+        for cls in classes:
+            # Extract relevant class details
+            class_id = cls.get('id', 'N/A')
+            class_name = cls.get('name', 'No Name Available')
+            subject_ids = cls.get('subjectIds', [])
+            
+            # Display class details in a structured format
+            st.markdown(f"### Class: {class_name} ({class_id})")
+            st.markdown(f"- **Class ID**: {class_id}")
+            st.markdown(f"- **Subjects**: {', '.join(subject_ids) if subject_ids else 'No subjects available'}")
+            
+            # Button for selecting the class
+            if st.button(f"👥 Select Class: {class_name}", key=f"class_{class_id}"):
+                st.session_state.selected_class = cls
+                st.rerun()
+
+
+
+# ===========================
+# CLASS DETAIL PAGE
+# ===========================
+
+if "selected_subject" in st.session_state and "selected_class" in st.session_state and page == "🏠 Home":
+    subject = st.session_state.selected_subject
+    class_obj = st.session_state.selected_class  # The class object (dictionary)
     
-    # Get exam ID and question ID
-    exam_id = st.text_input("Enter Exam ID", placeholder="Enter the exam ID for grading")
+    # Extract class details from the object
+    class_id = class_obj.get('id', 'N/A')
+    class_name = class_obj.get('name', 'No Name Available')
     
-    if exam_id:
-        question_id = st.text_input("Enter Question ID", placeholder="Enter the long-format question ID")
+    # Display header for selected class and subject
+    st.header(f"👥 {class_name} ({class_id}) - {subject['name']}")
+
+    # Fetching students data
+    students = fetch_data(f"{API_URL}/student/students/by-class", params={"class_id": class_id})
+
+    if not students:
+        st.info("No students found.")
+    else:
+        st.subheader("🎓 Student Results")
         
-        if question_id:
-            try:
-                # Fetch responses for evaluation
-                response = requests.get(f"{API_URL}/exams/{exam_id}/questions/{question_id}/responses")
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    
-                    # Display question information
-                    st.subheader("Question")
-                    st.write(data["questionText"])
-                    
-                    st.write("**Expected Keywords:**")
-                    st.write(", ".join(data["expectedKeywords"]))
-                    
-                    # Display responses
-                    st.subheader("Student Responses")
-                    
-                    if not data["responses"]:
-                        st.info("No responses found for grading.")
-                    else:
-                        for i, resp in enumerate(data["responses"]):
-                            with st.expander(f"Response {i+1} - Student ID: {resp['studentId']}"):
-                                st.write("**Response:**")
-                                st.write(resp["answerText"])
-                                
-                                marks = st.slider("Marks", min_value=0, max_value=10, key=f"marks_{resp['responseId']}")
-                                
-                                if st.button("Submit Grade", key=f"grade_{resp['responseId']}"):
-                                    try:
-                                        # Submit grade
-                                        grade_response = requests.post(
-                                            f"{API_URL}/responses/{resp['responseId']}/grade",
-                                            json={"marks": marks, "gradedBy": st.session_state.teacher_id}
-                                        )
-                                        
-                                        if grade_response.status_code == 200:
-                                            st.success("Response graded successfully!")
-                                        else:
-                                            st.error(f"Failed to grade response: {grade_response.text}")
+        for student in students:
+            # Fetching individual student results using student_id and subject_id
+            student_results = fetch_data(f"{API_URL}/student/results", params={"student_id": student['id'], "subject_id": subject['id']}) or []
+
+            with st.expander(f"👤 {student['name']} ({student['rollNumber']})"):
+                if student_results:
+                    for r in student_results:
+                        st.markdown(f"### 📘 Exam: {r['examId']}")
+                        st.markdown(
+                            f"- **Marks Obtained:** {r['marksObtained']} / {r['totalMarks']}\n"
+                            f"- **Percentage:** {r['percentage']:.2f}%\n"
+                            f"- **Grade:** {r['grade']}"
+                        )
+
+                        button_key = f"view_responses_{student['id']}_{r['examId']}"
+
+                        if st.button("📄 View Responses", key=button_key):
+                            responses = fetch_data(
+                                f"{API_URL}/student/responses",
+                                params={"student_id": student['id'], "exam_id": r['examId']}
+                            )
+
+                            if responses:
+                                st.markdown("#### 📝 Responses")
+                                for q in responses:
+                                    question_text = get_question_text(q.get("questionId"))
+                                    st.markdown(f"**Q:** {question_text}")
+
+                                    if q["type"] == "MCQ":
+                                        st.markdown(f"- **Selected Option:** {q.get('selectedOption', '-')}")
+                                        st.markdown(f"- **Correct Option:** {q.get('correctOption', '-')}")
+                                    elif q["type"] == "Long Answer":
+                                        st.markdown(f"- **Answer:** {q.get('studentAnswer', '-')}")
+                                        st.markdown(f"- **Graded By:** {q.get('gradedBy', '-')}")
+                                        if q.get("gradedAt"):
+                                            st.markdown(f"- **Graded At:** {format_datetime(q['gradedAt'])}")
                                     
-                                    except Exception as e:
-                                        st.error(f"An error occurred: {str(e)}")
-                
+                                    st.markdown(f"- **Marks:** {q.get('marksAwarded', 0)} / {q.get('totalMarks', 0)}")
+                                    st.markdown("---")
+                            else:
+                                st.warning("No responses found.")
                 else:
-                    st.error(f"Failed to fetch responses: {response.text}")
-            
-            except Exception as e:
-                st.error(f"An error occurred: {str(e)}")
+                    st.write("❌ No results yet.")
 
-# Add a footer
+
+
+
+# ===========================
+# SIDEBAR FOOTER
+# ===========================
+
 st.sidebar.markdown("---")
-st.sidebar.info("Teacher ID: " + st.session_state.teacher_id)
+st.sidebar.info(f"Teacher ID: {st.session_state.teacher_id}")

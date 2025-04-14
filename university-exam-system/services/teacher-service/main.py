@@ -14,6 +14,7 @@ db = client.university
 exams_collection = db.exams
 questions_collection = db.questions
 teachers_collection = db.teachers
+classes_collection = db["classes"]
 
 app = FastAPI()
 
@@ -34,6 +35,11 @@ def str_to_objectid(id: str):
         return ObjectId(id)
     except Exception:
         return None
+    
+class Class(BaseModel):
+    id: str
+    name: str
+    subject_ids: List[str]
 
 # Models
 class ExamCreate(BaseModel):
@@ -67,6 +73,15 @@ class QuestionCreate(BaseModel):
 # Routes
 
 
+@app.get("/get_name")
+def get_teacher_name(id: str):
+    teacher = teachers_collection.find_one({"_id": id})
+    
+    if not teacher:
+        raise HTTPException(status_code=404, detail="Teacher not found")
+
+    return {"teacher_name": teacher["name"]}
+
 
 @app.post("/exams")
 def create_exam(exam: ExamCreate):
@@ -78,8 +93,8 @@ def create_exam(exam: ExamCreate):
     return {"message": "Exam created", "exam_id": str(inserted.inserted_id)}
 
 @app.get("/exams")
-def get_exams_by_teacher(teacher_id: str):
-    exams = exams_collection.find({"createdBy": str_to_objectid(teacher_id)})
+def get_exams_by_subject(subject_id: str):
+    exams = exams_collection.find({"subjectId": subject_id})
     return [
         {
             "id": str(exam["_id"]),
@@ -164,6 +179,29 @@ def grade_response(response_id: str, marks: int = Body(...), gradedBy: str = Bod
 
     return {"message": "Response graded successfully!"}
 
+@app.get("/question/get")
+def get_question_by_id(id: str):
+    try:
+        question = db.questions.find_one({"_id": ObjectId(id)})
+        if not question:
+            raise HTTPException(status_code=404, detail="Question not found")
+
+        response = {
+            "questionId": str(question["_id"]),
+            "questionText": question.get("questionText", "No text provided"),
+            "type": question.get("type", "unknown"),
+        }
+
+        # Optional: If MCQ, include options
+        if question.get("type") == "mcq":
+            response["options"] = question.get("options", [])
+
+        return response
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid question ID: {e}")
+
+
 
 @app.get("/exams/{exam_id}/questions")
 def get_questions(exam_id: str):
@@ -183,6 +221,52 @@ def get_questions(exam_id: str):
             "expectedKeywords": q.get("expectedKeywords")
         }
         for q in questions
+    ]
+
+@app.get("/subjects")
+def get_subjects_by_teacher(teacher_id: str):
+    try:
+        # Query MongoDB to find subjects by teacher_id in the teacherIds array
+        subjects_cursor = db.subjects.find({"teacherIds": teacher_id})
+        
+        # Use count_documents() instead of the deprecated count()
+        subject_count = db.subjects.count_documents({"teacherIds": teacher_id})
+        
+        if subject_count == 0:
+            raise HTTPException(status_code=404, detail="No subjects found for this teacher")
+        
+        # Return a list of subjects for the given teacher
+        subjects = [
+            {
+                "id": str(subject["_id"]),
+                "name": subject["name"],
+                "code": subject["code"],
+                "teacherIds": subject["teacherIds"]
+            }
+            for subject in subjects_cursor
+        ]
+        
+        return subjects
+    
+    except Exception as e:
+        # Return a 500 Internal Server Error
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+@app.get("/subject-classes")
+def get_classes_by_subject(subject_id: str):
+    # Fetch the classes that are associated with the given subject
+    classes = classes_collection.find({"subjectIds": subject_id})
+    
+    if not classes:
+        raise HTTPException(status_code=404, detail="No classes found for the given subject")
+    
+    return [
+        {
+            "id": cclass["_id"],  # Convert ObjectId to string
+            "name": cclass["name"],
+            "subjectIds": cclass["subjectIds"]
+        }
+        for cclass in classes
     ]
 
 # Run

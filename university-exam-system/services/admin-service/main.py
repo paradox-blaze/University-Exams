@@ -48,53 +48,107 @@ class StudentAssignment(BaseModel):
 
 # ========== CREATE ROUTES ==========
 
-# ========== CREATE ROUTES ==========
-
-@app.post("/admin/classes")
-def create_class(class_name: str):
-    # Check if the class already exists
-    if students_collection.find_one({"class": class_name}):
-        raise HTTPException(status_code=400, detail="Class already exists")
-    
-    # Assuming no specific attributes other than name for the class
-    students_collection.update_many(
-        {},  # Update all students
-        {"$set": {"class": class_name}}  # Set the new class for all students (optional)
-    )
-    return {"message": f"Class {class_name} created successfully!"}
-
 @app.post("/admin/exams")
 def create_exam(exam_title: str, subject_id: str, start_time: datetime, end_time: datetime):
     # Validate subject_id
-    subject = subjects_collection.find_one({"_id": str_to_objectid(subject_id)})
+    subject = subjects_collection.find_one({"_id": subject_id})
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
 
-    # Create the exam document
+    # Create custom ID: e.g., math1, math2, etc.
+    base_id = exam_title.lower().replace(" ", "")
+    existing = list(exams_collection.find({"_id": {"$regex": f"^{base_id}"}}))
+    exam_number = len(existing) + 1
+    exam_id = f"{base_id}{exam_number}"
+
+    # Check uniqueness
+    if exams_collection.find_one({"_id": exam_id}):
+        raise HTTPException(status_code=400, detail="Exam ID already exists")
+
     exam = {
+        "_id": exam_id,
         "title": exam_title,
-        "subjectId": str_to_objectid(subject_id),
+        "subjectId": subject_id,
         "startTime": start_time,
         "endTime": end_time,
-        "status": "scheduled"  # Initial status is scheduled
+        "status": "scheduled"
     }
     exams_collection.insert_one(exam)
-    return {"message": f"Exam '{exam_title}' created successfully!"}
+    return {"message": f"Exam '{exam_title}' created with ID '{exam_id}'!"}
 
 @app.post("/admin/subjects")
 def create_subject(subject_name: str, subject_code: str):
-    # Check if the subject already exists
-    if subjects_collection.find_one({"name": subject_name}):
+    # Generate custom subject ID
+    base_id = subject_code.lower()
+    existing = list(subjects_collection.find({"_id": {"$regex": f"^{base_id}"}}))
+    subject_number = len(existing) + 1
+    subject_id = f"{base_id}{subject_number}"
+
+    # Check if name or _id exists
+    if subjects_collection.find_one({"_id": subject_id}) or subjects_collection.find_one({"name": subject_name}):
         raise HTTPException(status_code=400, detail="Subject already exists")
-    
-    # Create the subject document
+
     subject = {
+        "_id": subject_id,
         "name": subject_name,
         "code": subject_code,
-        "teacherIds": []  # Start with no teachers assigned
+        "teacherIds": []
     }
     subjects_collection.insert_one(subject)
-    return {"message": f"Subject '{subject_name}' created successfully!"}
+    return {"message": f"Subject '{subject_name}' created with ID '{subject_id}'!"}
+
+@app.post("/admin/classes")
+def create_class(class_name: str):
+    # Check if the class already exists (by checking if any student has this class)
+    if students_collection.find_one({"class": class_name}):
+        raise HTTPException(status_code=400, detail="Class already exists")
+
+    # Insert an empty "placeholder" student with a manual ID (not ideal)
+    # OR optionally create a separate collection just for classes
+    return {"message": f"Class '{class_name}' created (virtually)!"}
+
+@app.post("/admin/students")
+def create_student(name: str, email: str, class_name: str):
+    # Check if student already exists by email
+    if students_collection.find_one({"email": email}):
+        raise HTTPException(status_code=400, detail="Student with this email already exists")
+
+    # Generate custom student ID
+    base_id = "student"
+    existing = list(students_collection.find({"_id": {"$regex": f"^{base_id}"}}))
+    student_number = len(existing) + 1
+    student_id = f"{base_id}{student_number}"
+
+    student = {
+        "_id": student_id,
+        "name": name,
+        "email": email,
+        "class": class_name,
+        "scores": {}  # Initially no exam scores
+    }
+    students_collection.insert_one(student)
+    return {"message": f"Student '{name}' created with ID '{student_id}'!"}
+
+@app.post("/admin/teachers")
+def create_teacher(name: str, email: str):
+    # Check if teacher already exists by email
+    if teachers_collection.find_one({"email": email}):
+        raise HTTPException(status_code=400, detail="Teacher with this email already exists")
+
+    # Generate custom teacher ID
+    base_id = "teacher"
+    existing = list(teachers_collection.find({"_id": {"$regex": f"^{base_id}"}}))
+    teacher_number = len(existing) + 1
+    teacher_id = f"{base_id}{teacher_number}"
+
+    teacher = {
+        "_id": teacher_id,
+        "name": name,
+        "email": email,
+        "subjectIds": []  # Initially not assigned to any subject
+    }
+    teachers_collection.insert_one(teacher)
+    return {"message": f"Teacher '{name}' created with ID '{teacher_id}'!"}
 
 # ========== ASSIGNMENT ROUTES ==========
 

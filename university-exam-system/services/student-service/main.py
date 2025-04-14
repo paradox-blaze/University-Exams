@@ -79,7 +79,7 @@ class ResultOut(BaseModel):
 
 @app.get("/students")
 def get_students():
-    students = db.students.find()
+    students = students_collection.find()
     return [
         {
             "id": str(s["_id"]),
@@ -90,6 +90,86 @@ def get_students():
         }
         for s in students
     ]
+
+@app.get("/students/by-class")
+def get_students_by_class(class_id: str):
+    students = students_collection.find({"classId": class_id})
+    
+    if not students:
+        raise HTTPException(status_code=404, detail="No students found for this class")
+    
+    return [
+        {
+            "id": str(student["_id"]),
+            "name": student["name"],
+            "email": student["email"],
+            "rollNumber": student["rollNumber"],
+            "class": student["classId"]
+        }
+        for student in students
+    ]
+
+@app.get("/students/{student_id}")
+def get_student(student_id: str):
+    student = students_collection.find_one({"_id": str_to_objectid(student_id)})
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    
+    return {
+        "id": str(student["_id"]),
+        "name": student["name"],
+        "email": student["email"],
+        "rollNumber": student["rollNumber"],
+        "class": student["class"]
+    }
+
+from fastapi import APIRouter
+from typing import Optional
+from bson.objectid import ObjectId
+
+@app.get("/responses")
+def get_responses(student_id: str, exam_id: str):
+    # Fetch all responses for this student and exam
+    query = {"studentId": student_id, "examId": exam_id}
+    responses = list(responses_collection.find(query))
+
+    formatted_responses = []
+
+    for r in responses:
+        question = questions_collection.find_one({"_id": ObjectId(r["questionId"])})
+        if not question:
+            continue
+
+        # Detect response type: MCQ or Long Answer
+        if "selectedAnswerIndex" in r:
+            # MCQ question
+            options = question.get("options", [])
+            selected_index = r["selectedAnswerIndex"]
+            correct_index = question.get("correctAnswerIndex", -1)
+
+            formatted_responses.append({
+                "type": "MCQ",
+                "questionId": str(r["questionId"]),  # Return questionId instead of question text
+                "selectedOption": options[selected_index] if 0 <= selected_index < len(options) else "Invalid Option",
+                "correctOption": options[correct_index] if 0 <= correct_index < len(options) else "Not Provided",
+                "marksAwarded": r.get("marksAwarded", 0),
+                "totalMarks": question.get("marks", 0),
+            })
+
+        elif "longAnswerText" in r:
+            # Long answer question
+            formatted_responses.append({
+                "type": "Long Answer",
+                "questionId": str(r["questionId"]),  # Return questionId instead of question text
+                "studentAnswer": r.get("longAnswerText", ""),
+                "marksAwarded": r.get("marksAwarded", 0),
+                "totalMarks": question.get("marks", 0),
+                "gradedBy": r.get("gradedBy", "Not graded"),
+                "gradedAt": r.get("gradedAt", None),
+            })
+
+    return formatted_responses
+
 
 @app.get("/exams")
 def get_exams_for_student(student_id: str):
@@ -141,24 +221,70 @@ def submit_answer(exam_id: str, question_id: str, student_id: str, answer: Answe
     return {"message": "Response submitted successfully!"}
 
 @app.get("/results")
-def get_results_for_student(student_id: str):
-    responses = responses_collection.find({"studentId": str_to_objectid(student_id)})
-    
-    # Format responses with marks
-    results = []
-    for response in responses:
-        question = questions_collection.find_one({"_id": response["questionId"]})
-        exam = exams_collection.find_one({"_id": response["examId"]})
-        results.append({
-            "examTitle": exam["title"],
-            "questionText": question["questionText"],
-            "answerText": response["answerText"],
-            "marksObtained": response["marksObtained"],
-            "questionType": response["questionType"]
-        })
-    
-    return results
+def get_results_for_student(student_id: str, subject_id: Optional[str] = None):
+    # Build the query to fetch results for the specific student
+    query = {"studentId": student_id}
 
+    # If a subject_id is provided, filter results by subject
+    if subject_id:
+        # Fetch exam IDs for the given subject_id
+        exam_ids = exams_collection.find({"subjectId": subject_id}, {"_id": 1})
+        exam_ids = [str(exam["_id"]) for exam in exam_ids]  # Convert ObjectId to string
+
+        query["examId"] = {"$in": exam_ids}  # Add the subject-specific exam filter to the query
+
+    # Fetch the results from the 'results' collection
+    results = list(db.results.find(query))  # Convert the cursor to a list
+
+    # Format the results to return in a readable format
+    formatted_results = []
+    for result in results:
+        formatted_results.append({
+            "examId": result["examId"],  # Title of the exam
+            "marksObtained": result["marksObtained"],  # Marks obtained by the student
+            "totalMarks": result["totalMarks"],  # Total marks for the exam
+            "percentage": result["percentage"],  # Percentage calculated from marksObtained and totalMarks
+            "grade": result["grade"],  # Grade (A, B, C, etc.)
+            "computedAt": result["computedAt"],  # Timestamp when result was computed
+        })
+
+    return formatted_results
+
+
+# New Route: Get all student results with subject-wise filtering (for admins or teachers)
+@app.get("/all-results")
+def get_all_results(subject_id: Optional[str] = None):
+    all_results = []
+    students = students_collection.find()
+
+    for student in students:
+        student_results = []
+        responses = responses_collection.find({"studentId": student["_id"]})
+        
+        for response in responses:
+            question = questions_collection.find_one({"_id": response["questionId"]})
+            exam = exams_collection.find_one({"_id": response["examId"]})
+
+            # If a subject_id is provided, filter results by subject
+            if subject_id and exam["subjectId"] != subject_id:
+                continue
+
+            student_results.append({
+                "examTitle": exam["title"],
+                "questionText": question["questionText"],
+                "answerText": response["answerText"],
+                "marksObtained": response["marksObtained"],
+                "questionType": response["questionType"]
+            })
+        
+        if student_results:
+            all_results.append({
+                "studentId": str(student["_id"]),
+                "studentName": student["name"],
+                "results": student_results
+            })
+    
+    return all_results
 
 # Run the application
 if __name__ == "__main__":

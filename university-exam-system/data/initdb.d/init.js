@@ -208,3 +208,62 @@ students.forEach((student) => {
     });
   });
 });
+
+const mathEndTerm = {
+  _id: "math1-endterm",
+  subjectId: "math1",
+  title: "Math End Term",
+  date: now,
+  durationMinutes: 120,
+  createdBy: "teacher1",
+  isPublished: true,
+  startTime: new Date(now.getTime() - 1000 * 60 * 120),  // started 2 hours ago
+  endTime: new Date(now.getTime() - 1000 * 60 * 60),     // ended 1 hour ago
+  status: "evaluation"
+};
+db.exams.insertOne(mathEndTerm);
+
+const mathEndTermQuestions = [];
+
+for (let i = 1; i <= 3; i++) {
+  const type = i % 2 === 0 ? "long" : "mcq";
+  const question = {
+    _id: ObjectId(),
+    examId: "math1-endterm",
+    questionText: `Math End Term Q${i}`,
+    type: type,
+    marks: type === "mcq" ? 2 : 5
+  };
+
+  if (type === "mcq") {
+    question.options = ["A", "B", "C", "D"];
+    question.correctAnswerIndex = i % 4;
+  } else {
+    question.expectedKeywords = ["integration", "limits"];
+  }
+
+  mathEndTermQuestions.push(question);
+}
+db.questions.insertMany(mathEndTermQuestions);
+
+students.forEach((student) => {
+  mathEndTermQuestions.forEach((q, idx) => {
+    const resp = {
+      _id: ObjectId(),
+      studentId: student._id,
+      examId: "math1-endterm",
+      questionId: q._id,
+      timestamp: new Date()
+    };
+
+    if (q.type === "mcq") {
+      resp.selectedAnswerIndex = (idx + 1) % 4;
+      resp.marksAwarded = resp.selectedAnswerIndex === q.correctAnswerIndex ? q.marks : 0;
+    } else {
+      resp.longAnswerText = `Answer with math explanation by ${student.name}`;
+      resp.marksAwarded = null;  // not graded yet
+    }
+
+    db.responses.insertOne(resp);
+  });
+});

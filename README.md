@@ -114,8 +114,8 @@ This makes internal routing seamless and accessible to frontend apps via a commo
 
 ## 🚀 Running the Project
 
-```docker-compose build
-docker-compose up```
+```docker-compose build```
+```docker-compose up```
 
 Access:
 

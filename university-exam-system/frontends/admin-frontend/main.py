@@ -1,9 +1,48 @@
 import streamlit as st
 import requests
 
-API_URL = "http://localhost:80/"
+API_URL = "http://nginx/"
+
+
+# --- Auth Setup ---
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+    st.session_state.role = None
+    st.session_state.user_id = None
+
+if not st.session_state.logged_in:
+    st.subheader("🔐 Login")
+
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+
+    if st.button("Login"):
+        try:
+            res = requests.post(
+                "http://nginx/auth/login",
+                json={"username": username, "password": password, "role":"admin"}
+            )
+            if res.status_code == 200:
+                data = res.json()
+                st.session_state.logged_in = True
+                st.session_state.role = data.get("role")
+                st.session_state.user_id = data.get("id")
+                st.success(f"Logged in as {data.get('role').capitalize()}")
+                st.experimental_rerun()
+            else:
+                st.error("Invalid username or password.")
+        except Exception as e:
+            st.error(f"Auth failed: {e}")
+
+    st.stop()
+
 
 st.title("🎓 University Admin Panel")
+
+if st.sidebar.button("🚪 Logout"):
+    for key in ["logged_in", "role", "user_id"]:
+        st.session_state.pop(key, None)
+    st.experimental_rerun()
 
 # Navigation
 page = st.sidebar.selectbox("Choose Action", [

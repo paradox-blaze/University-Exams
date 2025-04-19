@@ -1,17 +1,19 @@
 import streamlit as st
 import requests
 from datetime import datetime, timedelta
-import pandas as pd
 import time
 
-API_URL = "http://localhost:80/"
+API_URL = "http://nginx/"
 
 st.set_page_config(page_title="Teacher Portal", page_icon="👩‍🏫", layout="wide")
 st.title("👩‍🏫 Teacher Portal")
 
 # Initialize session state variables
-if "teacher_id" not in st.session_state:
-    st.session_state.teacher_id = "teacher2"
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+    st.session_state.teacher_id = None
+    st.session_state.teacher_name = None
+
 if "exam_created" not in st.session_state:
     st.session_state.exam_created = False
 if "questions" not in st.session_state:
@@ -19,10 +21,45 @@ if "questions" not in st.session_state:
 if "current_view" not in st.session_state:
     st.session_state.current_view = "home"
 
+if not st.session_state.logged_in:
+    st.subheader("🔐 Login")
+
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+
+    if st.button("Login"):
+        try:
+            res = requests.post(
+                f"{API_URL}/auth/login",
+                json={"username": username, "password": password, "role": "teacher"}
+            )
+            if res.status_code == 200:
+                user = res.json()
+                st.session_state.logged_in = True
+                st.session_state.teacher_id = user["id"]
+                st.session_state.teacher_name = user["name"]
+                st.success(f"Welcome {user['name']}!")
+                st.rerun()
+            else:
+                st.error(res.json().get("detail", "Login failed"))
+        except Exception as e:
+            st.error(f"Login error: {e}")
+
+    st.stop()  # Stop rendering until logged in
+
+
 # Sidebar navigation
 page = st.sidebar.selectbox("Choose Section", [
     "🏠 Home",
 ])
+
+if st.session_state.logged_in:
+    if st.sidebar.button("🚪 Logout"):
+        st.session_state.logged_in = False
+        st.session_state.teacher_id = None
+        st.session_state.teacher_name = None
+        st.session_state.current_view = "home"
+        st.experimental_rerun()
 
 # ===========================
 # UTILITIES

@@ -73,6 +73,15 @@ services:
     networks:
       - backend
 
+  auth-service:
+    build: ./services/auth-service
+    ports:
+      - "8005:8005"
+    depends_on:
+      - mongodb
+    networks:
+      - backend
+
   stories-service:
     build: ./services/stories-service
     ports:
@@ -109,6 +118,34 @@ services:
       - requests-service
     networks:
       - backend
+    
+  admin-frontend:
+    build: ./frontends/admin-frontend
+    ports:
+      - "8501:8501"
+    depends_on:
+      - nginx
+    networks:
+      - backend
+
+  teacher-frontend:
+    build: ./frontends/teacher-frontend
+    ports:
+      - "8502:8501"
+    depends_on:
+      - nginx
+    networks:
+      - backend
+
+  student-frontend:
+    build: ./frontends/student-frontend
+    ports:
+      - "8503:8501"
+    depends_on:
+      - nginx
+    networks:
+      - backend
+
 
 networks:
   backend:

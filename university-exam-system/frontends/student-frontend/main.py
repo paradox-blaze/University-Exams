@@ -3,7 +3,7 @@ import requests
 from datetime import datetime
 import time
 
-API_URL = "http://localhost:80/"  # Reverse proxy to student service
+API_URL = "http://nginx/"  # Reverse proxy to student service
 
 st.set_page_config(page_title="Student Portal", page_icon="🎓", layout="wide")
 st.title("🎓 Student Portal")
@@ -12,11 +12,46 @@ st.title("🎓 Student Portal")
 # Session State
 # ==============================
 
-if "student_id" not in st.session_state:
-    st.session_state.student_id = "student1"
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+    st.session_state.student_id = None
+    st.session_state.student_name = None
+
+if not st.session_state.logged_in:
+    st.subheader("🔐 Student Login")
+
+    username = st.text_input("Username (e.g. student1)")
+    password = st.text_input("Password", type="password")
+
+    if st.button("Login"):
+        try:
+            res = requests.post(
+                f"{API_URL}/auth/login",
+                json={"username": username, "password": password, "role": "student"}
+            )
+            if res.status_code == 200:
+                user = res.json()
+                st.session_state.logged_in = True
+                st.session_state.student_id = user["id"]
+                st.session_state.student_name = user["name"]
+                st.success(f"Welcome {user['name']}!")
+                st.rerun()
+            else:
+                st.error(res.json().get("detail", "Login failed"))
+        except Exception as e:
+            st.error(f"Login error: {e}")
+
+    st.stop()
 
 # Sidebar Navigation
 page = st.sidebar.selectbox("Navigate", ["🏠 Home", "📝 Attempt Exam", "📄 My Results", "📬 My Requests"])
+
+if st.session_state.logged_in:
+    if st.sidebar.button("🚪 Logout"):
+        st.session_state.logged_in = False
+        st.session_state.student_id = None
+        st.session_state.student_name = None
+        st.experimental_rerun()
 
 # ==============================
 # Helpers

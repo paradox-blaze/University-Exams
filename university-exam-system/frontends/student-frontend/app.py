@@ -72,15 +72,18 @@ elif page == "📝 Attempt Exam":
                 st.write(f"🕒 End: {format_datetime(exam['endTime'])}")
                 st.write(f"⏱ Duration: {exam['durationMinutes']} min")
 
-                # Load questions
-                questions = fetch_data(f"{API_URL}/responses", params={
+                # Load attempted responses
+                responses = fetch_data(f"{API_URL}/responses", params={
                     "student_id": st.session_state.student_id,
                     "exam_id": exam["exam_id"]
-                })
+                }) or []
 
-                attempted_ids = [q["questionId"] for q in questions] if questions else []
-
+                attempted_ids = [r["questionId"] for r in responses]
                 exam_questions = fetch_data(f"{API_URL}/exams/{exam['exam_id']}/questions") or []
+
+                if len(attempted_ids) == len(exam_questions):
+                    st.success("✅ Exam Attempted Successfully!")
+                    continue
 
                 for q in exam_questions:
                     if q["questionId"] in attempted_ids:
@@ -94,27 +97,31 @@ elif page == "📝 Attempt Exam":
                         if q["questionType"] == "mcq":
                             options = q.get("options", [])
                             selected = st.radio("Choose your answer:", options, key=f"radio_{q['questionId']}")
-                            if st.form_submit_button("Submit"):
-                                index = options.index(selected)
-                                res = requests.post(
-                                    f"{API_URL}/exams/{exam['exam_id']}/questions/{q['questionId']}/response",
-                                    params={"student_id": st.session_state.student_id},
-                                    json={
-                                        "answerText": "",
-                                        "marksObtained": 0,  # Will be auto-computed in backend
-                                        "questionType": "mcq",
-                                        "selectedAnswerIndex": index
-                                    }
-                                )
-                                if res.status_code == 200:
-                                    st.success("Answer submitted!")
-                                    st.rerun()
-                                else:
-                                    st.error("Submission failed.")
+                            submitted = st.form_submit_button("Submit")
+                            if submitted:
+                                try:
+                                    index = options.index(selected)
+                                    res = requests.post(
+                                        f"{API_URL}/exams/{exam['exam_id']}/questions/{q['questionId']}/response",
+                                        params={"student_id": st.session_state.student_id},
+                                        json={
+                                            "answerText": "",  # not used for mcq
+                                            "marksObtained": index,  # misuse field to send index
+                                            "questionType": "mcq"
+                                        }
+                                    )
+                                    if res.status_code == 200:
+                                        st.success("Answer submitted!")
+                                        st.rerun()
+                                    else:
+                                        st.error(f"Submission failed: {res.text}")
+                                except Exception as e:
+                                    st.error(f"Error: {e}")
 
                         elif q["questionType"] == "long":
-                            answer_text = st.text_area("Your answer:")
-                            if st.form_submit_button("Submit"):
+                            answer_text = st.text_area("Your answer:", key=f"long_{q['questionId']}")
+                            submitted = st.form_submit_button("Submit")
+                            if submitted:
                                 res = requests.post(
                                     f"{API_URL}/exams/{exam['exam_id']}/questions/{q['questionId']}/response",
                                     params={"student_id": st.session_state.student_id},
@@ -128,6 +135,8 @@ elif page == "📝 Attempt Exam":
                                     st.rerun()
                                 else:
                                     st.error("Submission failed.")
+
+
 
 # ==============================
 # 📄 MY RESULTS

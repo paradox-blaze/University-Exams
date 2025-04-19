@@ -11,7 +11,7 @@ st.title("👩‍🏫 Teacher Portal")
 
 # Initialize session state variables
 if "teacher_id" not in st.session_state:
-    st.session_state.teacher_id = "teacher1"
+    st.session_state.teacher_id = "teacher2"
 if "exam_created" not in st.session_state:
     st.session_state.exam_created = False
 if "questions" not in st.session_state:

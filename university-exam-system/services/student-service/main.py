@@ -115,17 +115,32 @@ def submit_answer(exam_id: str, question_id: str, student_id: str, answer: Answe
     question = questions_collection.find_one({"_id": ObjectId(question_id), "examId": exam_id})
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
-    
+
     response_data = {
         "examId": exam_id,
         "questionId": ObjectId(question_id),
         "studentId": student_id,
-        "answerText": answer.answerText,
-        "marksAwarded": answer.marksObtained,
         "questionType": answer.questionType
     }
+
+    if answer.questionType == "long":
+        response_data["longAnswerText"] = answer.answerText
+        response_data["marksAwarded"] = None  # To be graded later by teacher
+    elif answer.questionType == "mcq":
+        try:
+            selected_index = int(answer.marksObtained)  # misused field for index
+            response_data["selectedAnswerIndex"] = selected_index
+            # Auto-grade
+            if selected_index == question.get("correctAnswerIndex"):
+                response_data["marksAwarded"] = question.get("marks", 0)
+            else:
+                response_data["marksAwarded"] = 0
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid selectedAnswerIndex for MCQ")
+
     responses_collection.insert_one(response_data)
     return {"message": "Response submitted successfully!"}
+
 
 @app.get("/responses")
 def get_responses(student_id: str, exam_id: str):
@@ -141,7 +156,6 @@ def get_responses(student_id: str, exam_id: str):
             selected = r["selectedAnswerIndex"]
             correct = question.get("correctAnswerIndex", -1)
             options = question.get("options", [])
-            qtext = question.get("questionText")
             result.append({
                 "type": "MCQ",
                 "questionId": str(r["questionId"]),

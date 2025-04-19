@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
 
-API_URL = "http://localhost:80/admin"
+API_URL = "http://localhost:80/"
 
 st.title("🎓 University Admin Panel")
 
@@ -18,7 +18,7 @@ page = st.sidebar.selectbox("Choose Action", [
 if page == "👩‍🏫 Teachers":
     st.subheader("👩‍🏫 Teachers")
 
-    res = requests.get(f"{API_URL}/teachers")
+    res = requests.get(f"{API_URL}/user/teachers")
     if res.status_code == 200:
         teachers = res.json()
         st.write("Existing Teachers")
@@ -30,7 +30,7 @@ if page == "👩‍🏫 Teachers":
         password = st.text_input("Password", type="password")
 
         if st.button("Create Teacher"):
-            res = requests.post(f"{API_URL}/teachers", json={
+            res = requests.post(f"{API_URL}/user/teachers", json={
                 "name": name,
                 "email": email,
                 "password": password
@@ -42,11 +42,11 @@ if page == "👩‍🏫 Teachers":
 
         st.subheader("📚 Assign Teacher to Subject")
 
-        subjects_res = requests.get(f"{API_URL}/subjects").json()
+        subjects_res = requests.get(f"{API_URL}/classes/subjects").json()
         subject_names = [s["name"] for s in subjects_res]
         selected_subject = st.selectbox("Select Subject", subject_names)
 
-        teachers_res = requests.get(f"{API_URL}/teachers").json()
+        teachers_res = requests.get(f"{API_URL}/user/teachers").json()
         teacher_names = [t["name"] for t in teachers_res]
         selected_teacher = st.selectbox("Select Teacher", teacher_names)
 
@@ -54,7 +54,7 @@ if page == "👩‍🏫 Teachers":
         teacher_id = teachers_res[teacher_names.index(selected_teacher)]["_id"]
 
         if st.button("Assign Teacher"):
-            res = requests.post(f"{API_URL}/subjects/{subject_id}/assign_teacher", json={
+            res = requests.post(f"{API_URL}/classes/subjects/{subject_id}/assign_teacher", json={
                 "teacher_id": teacher_id
             })
             if res.status_code == 200:
@@ -66,7 +66,7 @@ if page == "👩‍🏫 Teachers":
         teacher_to_delete = st.selectbox("Select Teacher to Delete", teacher_names)
         if st.button("Delete Teacher"):
             teacher_id = teachers_res[teacher_names.index(teacher_to_delete)]["_id"]
-            res = requests.delete(f"{API_URL}/teachers/{teacher_id}")
+            res = requests.delete(f"{API_URL}/user/teachers/{teacher_id}")
             if res.status_code == 200:
                 st.success("Teacher deleted.")
             else:
@@ -78,7 +78,7 @@ if page == "👩‍🏫 Teachers":
 elif page == "🧑‍🎓 Students":
     st.subheader("🧑‍🎓 Students")
 
-    res = requests.get(f"{API_URL}/students")
+    res = requests.get(f"{API_URL}/user/students")
     if res.status_code == 200:
         students = res.json()
         st.write("Existing Students")
@@ -92,7 +92,7 @@ elif page == "🧑‍🎓 Students":
         password = st.text_input("Password", type="password")
 
         if st.button("Create Student"):
-            res = requests.post(f"{API_URL}/students", json={
+            res = requests.post(f"{API_URL}/user/students", json={
                 "name": name,
                 "email": email,
                 "rollNumber": roll_number,
@@ -110,7 +110,7 @@ elif page == "🧑‍🎓 Students":
 
         if st.button("Delete Student"):
             student_id = students[student_names.index(selected_student)]["_id"]
-            res = requests.delete(f"{API_URL}/students/{student_id}")
+            res = requests.delete(f"{API_URL}/user/students/{student_id}")
             if res.status_code == 200:
                 st.success("Student deleted.")
             else:
@@ -122,7 +122,7 @@ elif page == "🧑‍🎓 Students":
 elif page == "🏫 Classes":
     st.subheader("🏫 Classes")
 
-    students_res = requests.get(f"{API_URL}/students")
+    students_res = requests.get(f"{API_URL}/user/students")
     if students_res.status_code == 200:
         students = students_res.json()
         class_list = sorted(set(s.get("classId", "Unknown") for s in students))
@@ -138,7 +138,7 @@ elif page == "🏫 Classes":
 
         if st.button("Create Class"):
             if new_class_name:
-                res = requests.post(f"{API_URL}/classes", json={"class_name": new_class_name})
+                res = requests.post(f"{API_URL}/classes/classes", json={"class_name": new_class_name})
                 if res.status_code == 200:
                     st.success(f"Class '{new_class_name}' created!")
                 else:
@@ -152,7 +152,7 @@ elif page == "🏫 Classes":
 elif page == "📝 Exams":
     st.subheader("📝 Exams")
 
-    exams_res = requests.get(f"{API_URL}/exams")
+    exams_res = requests.get(f"{API_URL}/exam/exams")
     if exams_res.status_code == 200:
         exams = exams_res.json()
 
@@ -164,7 +164,7 @@ elif page == "📝 Exams":
         new_status = st.selectbox("Select Status", ["draft", "scheduled", "live", "evaluation", "ended"])
 
         if st.button("Update Exam Status"):
-            res = requests.put(f"{API_URL}/exams/{exam_id}/status", json={"status": new_status})
+            res = requests.put(f"{API_URL}/exam/exams/{exam_id}/status", json={"status": new_status})
             if res.status_code == 200:
                 st.success(f"Status updated to {new_status}!")
             else:
@@ -172,14 +172,14 @@ elif page == "📝 Exams":
 
         st.subheader("❌ Delete Exam")
         if st.button("Delete Exam"):
-            res = requests.delete(f"{API_URL}/exams/{exam_id}")
+            res = requests.delete(f"{API_URL}/exam/exams/{exam_id}")
             if res.status_code == 200:
                 st.success("Exam deleted.")
             else:
                 st.error(res.json().get("detail", "Something went wrong."))
 
         st.subheader("➕ Create Exam")
-        subjects = requests.get(f"{API_URL}/subjects").json()
+        subjects = requests.get(f"{API_URL}/classes/subjects").json()
         subject_names = [s["name"] for s in subjects]
         selected_subject = st.selectbox("Subject", subject_names)
         title = st.text_input("Exam Title")
@@ -188,7 +188,7 @@ elif page == "📝 Exams":
 
         if st.button("Create Exam"):
             subject_id = subjects[subject_names.index(selected_subject)]["_id"]
-            res = requests.post(f"{API_URL}/exams", json={
+            res = requests.post(f"{API_URL}/exam/exams", json={
                 "exam_title": title,
                 "subject_id": subject_id,
                 "start_time": str(start),
@@ -205,7 +205,7 @@ elif page == "📝 Exams":
 elif page == "📘 Subjects":
     st.subheader("📘 Subjects")
 
-    subjects = requests.get(f"{API_URL}/subjects").json()
+    subjects = requests.get(f"{API_URL}/classes/subjects").json()
     if subjects:
         st.write("Subjects")
         st.dataframe(subjects)
@@ -215,7 +215,7 @@ elif page == "📘 Subjects":
         code = st.text_input("Subject Code")
 
         if st.button("Create Subject"):
-            res = requests.post(f"{API_URL}/subjects", json={"subject_name": name, "subject_code": code})
+            res = requests.post(f"{API_URL}/classes/subjects", json={"subject_name": name, "subject_code": code})
             if res.status_code == 200:
                 st.success("Subject created.")
             else:
@@ -227,7 +227,7 @@ elif page == "📘 Subjects":
 
         if st.button("Delete Subject"):
             subject_id = subjects[names.index(selected_subject)]["_id"]
-            res = requests.delete(f"{API_URL}/subjects/{subject_id}")
+            res = requests.delete(f"{API_URL}/classes/subjects/{subject_id}")
             if res.status_code == 200:
                 st.success("Subject deleted.")
             else:

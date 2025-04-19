@@ -14,8 +14,8 @@ services:
     restart: always
 
   # Admin Service
-  admin-service:
-    build: ./services/admin-service
+  user-service:
+    build: ./services/user-service
     ports:
       - "8000:8000"
     depends_on:
@@ -24,8 +24,8 @@ services:
       - backend
 
   # Student Service
-  student-service:
-    build: ./services/student-service
+  classes-service:
+    build: ./services/classes-service
     ports:
       - "8001:8001"
     depends_on:
@@ -34,8 +34,8 @@ services:
       - backend
 
   # Teacher Service
-  teacher-service:
-    build: ./services/teacher-service
+  exam-service:
+    build: ./services/exam-service
     ports:
       - "8002:8002"
     depends_on:
@@ -44,16 +44,24 @@ services:
       - backend
 
   # Evaluation Service
-  re-evaluation-service:
-    build: ./services/re-evaluation-service
+  questions-service:
+    build: ./services/questions-service
     ports:
       - "8003:8003"
     depends_on:
       - mongodb
     networks:
       - backend
+    # Evaluation Service
+  response-service:
+    build: ./services/response-service
+    ports:
+      - "8004:8004"
+    depends_on:
+      - mongodb
+    networks:
+      - backend
 
-  # Auth Service (Optional)
   # Reverse Proxy: Nginx
   nginx:
     image: nginx:latest
@@ -63,10 +71,11 @@ services:
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf # Mount the Nginx configuration file
     depends_on:
-      - admin-service
-      - student-service
-      - teacher-service
-      - re-evaluation-service
+      - user-service
+      - classes-service
+      - exam-service
+      - questions-service
+      - response-service
     networks:
       - backend
 

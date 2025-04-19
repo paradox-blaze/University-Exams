@@ -11,7 +11,9 @@ page = st.sidebar.selectbox("Choose Action", [
     "🧑‍🎓 Students",
     "🏫 Classes",
     "📝 Exams",
-    "📘 Subjects"
+    "📘 Subjects",
+    "📖 Stories",
+    "📬 Requests"
 ])
 
 # 1. Teachers Section
@@ -234,3 +236,113 @@ elif page == "📘 Subjects":
                 st.error(res.json().get("detail", "Something went wrong."))
     else:
         st.error("Failed to fetch subjects.")
+
+# 6. Stories Section
+elif page == "📖 Stories":
+    st.subheader("📖 Manage Stories")
+
+    # Base URL of the Flask stories service
+    STORIES_API = f"{API_URL}/stories/stories"  # Adjust if reverse-proxied or Docker network alias
+
+    # ==== Show All Stories ====
+    try:
+        res = requests.get(STORIES_API)
+        if res.status_code == 200:
+            all_stories = res.json()
+            if all_stories:
+                for story in all_stories:
+                    with st.expander(f"📘 {story.get('title', 'Untitled')}"):
+                        st.write(f"✏️ **Author**: {story.get('author', 'N/A')}")
+                        st.write(f"📖 **Content**:\n\n{story.get('content', 'No content')}")
+                        if st.button(f"🗑 Delete Story: {story.get('title')}", key=story.get("title")):
+                            del_res = requests.delete(STORIES_API, params={"title": story.get("title")})
+                            if del_res.status_code == 200:
+                                st.success("Story deleted successfully.")
+                                st.rerun()
+                            else:
+                                st.error("Failed to delete story.")
+            else:
+                st.info("No stories available.")
+        else:
+            st.error("Failed to fetch stories.")
+    except Exception as e:
+        st.error(f"Error: {e}")
+
+    st.markdown("---")
+    st.subheader("➕ Add New Story")
+
+    title = st.text_input("Story Title")
+    author = st.text_input("Author Name")
+    content = st.text_area("Story Content")
+
+    if st.button("Submit Story"):
+        if title and content:
+            story_data = {
+                "title": title,
+                "author": author,
+                "content": content
+            }
+            try:
+                res = requests.post(STORIES_API, json=story_data)
+                if res.status_code == 200:
+                    st.success("Story added successfully!")
+                    st.rerun()
+                else:
+                    st.error("Failed to add story.")
+            except Exception as e:
+                st.error(f"Error: {e}")
+        else:
+            st.warning("Title and content are required.")
+
+# 7. Handle Student Requests
+elif page == "📬 Requests":
+    st.subheader("📬 Student Requests")
+
+    REQUESTS_API = f"{API_URL}/requests/requests"
+
+    # === Fetch all requests ===
+    try:
+        res = requests.get(REQUESTS_API)
+        if res.status_code == 200:
+            all_requests = res.json()
+            if not all_requests:
+                st.info("No requests found.")
+            else:
+                for req in all_requests:
+                    with st.expander(f"📌 {req['title']} (Status: {req['status'].capitalize()})"):
+                        st.write(f"🧑 Requested By: `{req['requested_by']}`")
+                        st.write(f"📂 Category: {req['category']}")
+                        st.write(f"📝 Description:\n\n{req['description']}")
+                        st.write(f"📅 Created At: {req.get('created_at', 'N/A')}")
+                        if req.get("admin_comment"):
+                            st.write(f"💬 Admin Comment: {req['admin_comment']}")
+
+                        if req["status"] == "pending":
+                            new_status = st.selectbox(
+                                "Update Status",
+                                options=["approved", "denied"],
+                                key=f"status_{req['id']}"
+                            )
+                            comment = st.text_area("Admin Comment (Optional)", key=f"comment_{req['id']}")
+
+                            if st.button("✅ Update", key=f"update_{req['id']}"):
+                                try:
+                                    update_data = {
+                                        "status": new_status,
+                                        "admin_comment": comment
+                                    }
+                                    update_res = requests.put(
+                                        f"{REQUESTS_API}/{req['id']}",
+                                        json=update_data
+                                    )
+                                    if update_res.status_code == 200:
+                                        st.success("Request updated successfully.")
+                                        st.rerun()
+                                    else:
+                                        st.error("Failed to update request.")
+                                except Exception as e:
+                                    st.error(f"Error: {e}")
+        else:
+            st.error("Failed to fetch requests.")
+    except Exception as e:
+        st.error(f"Error fetching requests: {e}")

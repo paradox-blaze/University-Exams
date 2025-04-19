@@ -12,7 +12,18 @@ services:
     networks:
       - backend
     restart: always
-
+  sqldb:
+    image: mysql:8.0
+    container_name: db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: requests_db
+      MYSQL_USER: request_user
+      MYSQL_PASSWORD: requestpass
+    ports:
+      - "3307:3306"
+    networks:
+      - backend
   # Admin Service
   user-service:
     build: ./services/user-service
@@ -62,6 +73,24 @@ services:
     networks:
       - backend
 
+  stories-service:
+    build: ./services/stories-service
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongodb
+    networks:
+      - backend
+
+  requests-service:
+    build: ./services/requests-service
+    ports:
+      - "5001:5001"
+    depends_on:
+      - sqldb
+    networks:
+      - backend
+
   # Reverse Proxy: Nginx
   nginx:
     image: nginx:latest
@@ -76,6 +105,8 @@ services:
       - exam-service
       - questions-service
       - response-service
+      - stories-service
+      - requests-service
     networks:
       - backend
 

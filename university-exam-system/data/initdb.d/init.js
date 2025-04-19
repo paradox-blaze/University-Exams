@@ -267,3 +267,50 @@ students.forEach((student) => {
     db.responses.insertOne(resp);
   });
 });
+
+
+// === Insert Sample Stories ===
+const stories = [
+  {
+    title: "📢 Math Midterm Scheduled",
+    author: "teacher1",
+    postedBy: "Prof. Alice Smith",
+    content: "The Math midterm exam is scheduled for October 10th at 10 AM in Hall A.",
+    tags: ["exam", "math", "announcement"],
+    date: new Date()
+  },
+  {
+    title: "🎉 Coding Club Hackathon",
+    author: "coding_club",
+    postedBy: "Coding Club",
+    content: "Join us for a 24-hour Hackathon this weekend. Food, fun, and prizes await!",
+    tags: ["event", "club", "coding"],
+    date: new Date()
+  },
+  {
+    title: "🧪 Chemistry Lab Practical",
+    author: "teacher3",
+    postedBy: "Dr. Carol White",
+    content: "Don't forget your lab coats! Chemistry practicals will be conducted next Thursday.",
+    tags: ["lab", "chemistry", "exam"],
+    date: new Date()
+  },
+  {
+    title: "📚 Book Club Meetup",
+    author: "book_club",
+    postedBy: "Book Club",
+    content: "Discuss your favorite books and discover new reads. Room 203, 5 PM, Friday.",
+    tags: ["event", "club", "books"],
+    date: new Date()
+  },
+  {
+    title: "📈 Economics Quiz Announcement",
+    author: "teacher2",
+    postedBy: "Mr. Bob Johnson",
+    content: "A short quiz covering chapters 4 to 6 will be held next Monday during lecture.",
+    tags: ["quiz", "economics", "announcement"],
+    date: new Date()
+  }
+];
+
+db.stories.insertMany(stories);

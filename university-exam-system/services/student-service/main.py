@@ -183,6 +183,26 @@ def get_results_for_student(student_id: str, subject_id: Optional[str] = None):
         for r in results
     ]
 
+@app.get("/exams/{exam_id}/questions")
+def get_exam_questions(exam_id: str):
+    exam = exams_collection.find_one({"_id": exam_id})
+    if not exam:
+        raise HTTPException(status_code=404, detail="Exam not found")
+
+    questions = list(questions_collection.find({"examId": exam_id}))
+    return [
+        {
+            "questionId": str(q["_id"]),
+            "questionText": q["questionText"],
+            "questionType": q["type"],
+            "marks": q["marks"],
+            "options": q.get("options", []),
+            "expectedKeywords": q.get("expectedKeywords", []),
+            "correctAnswerIndex": q.get("correctAnswerIndex") if "correctAnswerIndex" in q else None
+        }
+        for q in questions
+    ]
+
 @app.get("/all-results")
 def get_all_results(subject_id: Optional[str] = None):
     final = []

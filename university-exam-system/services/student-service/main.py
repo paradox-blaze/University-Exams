@@ -16,6 +16,8 @@ questions_collection = db.questions
 responses_collection = db.responses
 students_collection = db.students
 results_collection = db.results
+subjects_collection = db.subjects
+classes_collection = db.classes
 
 app = FastAPI()
 
@@ -24,7 +26,10 @@ def get_student_courses(student_id: str):
     student = students_collection.find_one({"_id": student_id})
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
-    return student["course_ids"]
+    myclass = student['classId']
+    my_class_object = classes_collection.find_one({"_id": myclass})
+    print(my_class_object['subjectIds'])
+    return my_class_object['subjectIds']
 
 def is_exam_live(exam):
     return exam["status"] == "live" and exam["startTime"] <= datetime.now() <= exam["endTime"]

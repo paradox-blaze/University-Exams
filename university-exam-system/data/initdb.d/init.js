@@ -25,8 +25,8 @@ const subjects = [
   { _id: "math1", name: "Mathematics", code: "MATH101", teacherIds: ["teacher1", "teacher2"] },
   { _id: "phys1", name: "Physics", code: "PHYS201", teacherIds: ["teacher2", "teacher3"] },
   { _id: "chem1", name: "Chemistry", code: "CHEM301", teacherIds: ["teacher3", "teacher4"] },
-  { _id: "bio1",  name: "Biology", code: "BIO202", teacherIds: ["teacher4", "teacher5"] },
-  { _id: "eng1",  name: "English", code: "ENG101", teacherIds: ["teacher5", "teacher1"] }
+  { _id: "bio1", name: "Biology", code: "BIO202", teacherIds: ["teacher4", "teacher5"] },
+  { _id: "eng1", name: "English", code: "ENG101", teacherIds: ["teacher5", "teacher1"] }
 ];
 db.subjects.insertMany(subjects);
 
@@ -117,12 +117,12 @@ const exams = [
 db.exams.insertMany(exams);
 
 // === Insert Questions ===
-const questionTypes = ["mcq", "long"];
+const types = ["mcq", "long"];
 let questions = [];
 
 exams.forEach((exam, idx) => {
   for (let i = 1; i <= 5; i++) {
-    let type = questionTypes[i % 2];
+    let type = types[i % 2];
     let q = {
       _id: ObjectId(),
       examId: exam._id,
@@ -159,7 +159,7 @@ students.forEach((student) => {
           _id: ObjectId(),
           studentId: student._id,
           examId: exam._id,
-          questionId: q._id,
+          id: q._id,
           timestamp: new Date()
         };
 
@@ -192,7 +192,7 @@ students.forEach((student) => {
 
       const total = studentResponses.reduce((sum, r) => sum + r.marksAwarded, 0);
       const maxMarks = studentResponses.reduce((sum, r) => {
-        const q = questions.find(q => q._id.equals(r.questionId));
+        const q = questions.find(q => q._id.equals(r.id));
         return sum + (q ? q.marks : 0);
       }, 0);
 
@@ -252,7 +252,7 @@ students.forEach((student) => {
       _id: ObjectId(),
       studentId: student._id,
       examId: "math1-endterm",
-      questionId: q._id,
+      id: q._id,
       timestamp: new Date()
     };
 

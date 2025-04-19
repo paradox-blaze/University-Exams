@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 from datetime import datetime
 
-API_URL = "http://localhost:80/student"  # Reverse proxy to student service
+API_URL = "http://localhost:80/"  # Reverse proxy to student service
 
 st.set_page_config(page_title="Student Portal", page_icon="🎓", layout="wide")
 st.title("🎓 Student Portal")
@@ -46,11 +46,11 @@ def fetch_data(url, params=None):
 if page == "🏠 Home":
     st.header("Welcome!")
 
-    student = fetch_data(f"{API_URL}/students/{st.session_state.student_id}")
+    student = fetch_data(f"{API_URL}/user/students/{st.session_state.student_id}")
     if student:
         st.subheader(f"👤 {student['name']} ({student['rollNumber']})")
         st.write(f"📧 Email: {student['email']}")
-        st.write(f"🏫 Class: {student['class']}")
+        st.write(f"🏫 Class: {student['classId']}")
     else:
         st.error("Student profile not found.")
 
@@ -61,53 +61,53 @@ if page == "🏠 Home":
 elif page == "📝 Attempt Exam":
     st.header("📝 Live Exams")
 
-    exams = fetch_data(f"{API_URL}/exams", params={"student_id": st.session_state.student_id})
+    exams = fetch_data(f"{API_URL}/exam/exams/by-student", params={"student_id": st.session_state.student_id})
     
     if not exams:
         st.info("No live exams available.")
     else:
         for exam in exams:
+            print(exam)
             with st.expander(f"{exam['title']} ({exam['exam_id']})"):
                 st.write(f"📅 Start: {format_datetime(exam['startTime'])}")
                 st.write(f"🕒 End: {format_datetime(exam['endTime'])}")
                 st.write(f"⏱ Duration: {exam['durationMinutes']} min")
 
                 # Load attempted responses
-                responses = fetch_data(f"{API_URL}/responses", params={
+                responses = fetch_data(f"{API_URL}/response/responses", params={
                     "student_id": st.session_state.student_id,
                     "exam_id": exam["exam_id"]
                 }) or []
 
-                attempted_ids = [r["questionId"] for r in responses]
-                exam_questions = fetch_data(f"{API_URL}/exams/{exam['exam_id']}/questions") or []
+                attempted_ids = [r["id"] for r in responses]
+                exam_questions = fetch_data(f"{API_URL}/exam/exams/{exam['exam_id']}/questions") or []
 
                 if len(attempted_ids) == len(exam_questions):
                     st.success("✅ Exam Attempted Successfully!")
                     continue
 
                 for q in exam_questions:
-                    if q["questionId"] in attempted_ids:
+                    if q["id"] in attempted_ids:
                         st.success(f"✅ Already answered: {q['questionText']}")
                         continue
 
-                    with st.form(key=f"{q['questionId']}"):
+                    with st.form(key=f"{q['id']}"):
                         st.markdown(f"**Q: {q['questionText']}**")
                         st.markdown(f"_({q['marks']} marks)_")
 
-                        if q["questionType"] == "mcq":
+                        if q["type"] == "mcq":
                             options = q.get("options", [])
-                            selected = st.radio("Choose your answer:", options, key=f"radio_{q['questionId']}")
+                            selected = st.radio("Choose your answer:", options, key=f"radio_{q['id']}")
                             submitted = st.form_submit_button("Submit")
                             if submitted:
                                 try:
                                     index = options.index(selected)
                                     res = requests.post(
-                                        f"{API_URL}/exams/{exam['exam_id']}/questions/{q['questionId']}/response",
+                                        f"{API_URL}/exam/exams/{exam['exam_id']}/questions/{q['id']}/response",
                                         params={"student_id": st.session_state.student_id},
                                         json={
-                                            "answerText": "",  # not used for mcq
                                             "marksObtained": index,  # misuse field to send index
-                                            "questionType": "mcq"
+                                            "type": "mcq"
                                         }
                                     )
                                     if res.status_code == 200:
@@ -118,16 +118,16 @@ elif page == "📝 Attempt Exam":
                                 except Exception as e:
                                     st.error(f"Error: {e}")
 
-                        elif q["questionType"] == "long":
-                            answer_text = st.text_area("Your answer:", key=f"long_{q['questionId']}")
+                        elif q["type"] == "long":
+                            answer_text = st.text_area("Your answer:", key=f"long_{q['id']}")
                             submitted = st.form_submit_button("Submit")
                             if submitted:
                                 res = requests.post(
-                                    f"{API_URL}/exams/{exam['exam_id']}/questions/{q['questionId']}/response",
+                                    f"{API_URL}/exam/exams/{exam['exam_id']}/questions/{q['id']}/response",
                                     params={"student_id": st.session_state.student_id},
                                     json={
-                                        "answerText": answer_text,
-                                        "questionType": "long"
+                                        "longAnswerText": answer_text,
+                                        "type": "long"
                                     }
                                 )
                                 if res.status_code == 200:
@@ -145,7 +145,7 @@ elif page == "📝 Attempt Exam":
 elif page == "📄 My Results":
     st.header("📊 My Results")
 
-    results = fetch_data(f"{API_URL}/results", params={"student_id": st.session_state.student_id})
+    results = fetch_data(f"{API_URL}/exam/results", params={"student_id": st.session_state.student_id})
     if not results:
         st.info("No results available.")
     else:
@@ -158,7 +158,7 @@ elif page == "📄 My Results":
                     st.write(f"🕓 Computed: {format_datetime(r['computedAt'])}")
 
                 # View responses for this exam
-                responses = fetch_data(f"{API_URL}/responses", params={
+                responses = fetch_data(f"{API_URL}/response/responses", params={
                     "student_id": st.session_state.student_id,
                     "exam_id": r["examId"]
                 })

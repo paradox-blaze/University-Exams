@@ -33,7 +33,7 @@ def format_datetime(dt_str):
 
 def get_teacher_name_by_id(teacher_id):
     try:
-        res = requests.get(f"{API_URL}/teacher/get_name", params={"id": teacher_id})
+        res = requests.get(f"{API_URL}/user/get_name", params={"id": teacher_id})
         if res.status_code == 200:
             return res.json().get("teacher_name", "Unknown Teacher")
     except Exception:
@@ -52,7 +52,7 @@ def fetch_data(url, params=None):
 def get_question_text(question_id):
     try:
         # Call the API
-        res = fetch_data(f"{API_URL}/teacher/question/get", params={"id": question_id})
+        res = fetch_data(f"{API_URL}/questions/question/get", params={"id": question_id})
 
         # Ensure the response contains the questionText
         if res and "questionText" in res:
@@ -153,7 +153,7 @@ def create_exam():
                     
                     try:
                         # Send the request to create the exam
-                        res = requests.post(f"{API_URL}/teacher/exams/create", json=exam_data)
+                        res = requests.post(f"{API_URL}/exam/exams/create", json=exam_data)
                         
                         if res.status_code == 200:
                             # Save the created exam details in session state
@@ -193,7 +193,7 @@ def manage_questions_form():
     st.info(f"Exam: {exam.get('title', 'Unknown Exam')} | Status: {exam_status.upper()}")
 
     # === Fetch questions from backend ===
-    questions = fetch_data(f"{API_URL}/teacher/exams/{exam_id}/questions") or []
+    questions = fetch_data(f"{API_URL}/questions/exams/{exam_id}/questions") or []
 
     if questions:
         st.subheader("📚 Questions")
@@ -211,7 +211,7 @@ def manage_questions_form():
                 if exam_status == "draft":
                     if st.button("❌ Delete Question", key=f"delete_{q['id']}"):
                         try:
-                            res = requests.delete(f"{API_URL}/teacher/questions/{q['id']}")
+                            res = requests.delete(f"{API_URL}/questions/questions/{q['id']}")
                             if res.status_code == 200:
                                 st.success("Question deleted successfully!")
                                 st.rerun()
@@ -249,7 +249,7 @@ def manage_questions_form():
                             "correctAnswerIndex": correct_answer_index,
                             "marks": marks
                         }
-                        res = requests.post(f"{API_URL}/teacher/questions/create", json=question)
+                        res = requests.post(f"{API_URL}/questions/questions/create", json=question)
                         if res.status_code == 200:
                             st.success("MCQ question added!")
                             st.rerun()
@@ -274,7 +274,7 @@ def manage_questions_form():
                             "expectedKeywords": [k.strip() for k in expected_keywords.split(",")] if expected_keywords else [],
                             "marks": marks
                         }
-                        res = requests.post(f"{API_URL}/teacher/questions/create", json=question)
+                        res = requests.post(f"{API_URL}/questions/questions/create", json=question)
                         if res.status_code == 200:
                             st.success("Long-form question added!")
                             st.rerun()
@@ -310,7 +310,7 @@ def evaluate_exam():
     st.subheader(f"Evaluating: {exam.get('title')}")
 
     # Fetch questions
-    questions = fetch_data(f"{API_URL}/teacher/exams/{exam_id}/questions") or []
+    questions = fetch_data(f"{API_URL}/questions/exams/{exam_id}/questions") or []
 
     if not questions:
         st.info("No questions found for this exam.")
@@ -325,7 +325,7 @@ def evaluate_exam():
 
             try:
                 res = requests.get(
-                    f"{API_URL}/teacher/exams/question-responses",
+                    f"{API_URL}/response/exams/question-responses",
                     params={"exam_id": exam_id, "question_id": question["id"]}
                 )
                 if res.status_code == 200:
@@ -344,7 +344,7 @@ def evaluate_exam():
                 marks_existing = resp.get("marksAwarded")
 
                 with st.expander(f"🧑 Student: {resp['studentId']}"):
-                    st.write(f"**Answer:** {resp['answerText']}")
+                    st.write(f"**Answer:** {resp['longAnswerText']}")
 
                     if marks_existing is not None:
                         st.success(f"Already graded: {marks_existing} / {question['marks']}")
@@ -371,7 +371,7 @@ def evaluate_exam():
                         }
                         try:
                             res = requests.post(
-                                f"{API_URL}/teacher/responses/grade",
+                                f"{API_URL}/response/responses/grade",
                                 params={"response_id": rid},
                                 json=payload
                             )
@@ -391,7 +391,7 @@ def evaluate_exam():
             st.write("### 📊 MCQ Responses")
             try:
                 res = requests.get(
-                    f"{API_URL}/teacher/exams/question-responses/all",
+                    f"{API_URL}/response/exams/question-responses/all",
                     params={"exam_id": exam_id, "question_id": question["id"]}
                 )
                 if res.status_code == 200:
@@ -422,7 +422,7 @@ def evaluate_exam():
     if st.button("📊 Compute Final Results"):
         try:
             res = requests.post(
-                f"{API_URL}/teacher/exams/finalize-results",
+                f"{API_URL}/exam/exams/finalize-results",
                 params={"exam_id": exam_id}
             )
             if res.status_code == 200:
@@ -456,7 +456,7 @@ elif "current_view" in st.session_state and st.session_state.current_view == "ad
 elif page == "🏠 Home" and st.session_state.current_view == "home":
     if "selected_subject" not in st.session_state:
         st.header("🏠 My Subjects")
-        subjects = fetch_data(f"{API_URL}/teacher/subjects", params={"teacher_id": st.session_state.teacher_id})
+        subjects = fetch_data(f"{API_URL}/classes/subjects-by-teacher", params={"teacher_id": st.session_state.teacher_id})
 
         if not subjects:
             st.info("You are not assigned to any subjects.")
@@ -482,7 +482,7 @@ elif page == "🏠 Home" and st.session_state.current_view == "home":
 
         # Exams Section
         st.subheader("🧾 Exams")
-        exams = fetch_data(f"{API_URL}/teacher/exams", params={"subject_id": subject['id']})
+        exams = fetch_data(f"{API_URL}/exam/exams/by-subject", params={"subject_id": subject['id']})
         
         if st.button("➕ Create New Exam", key="create_exam_btn"):
             show_create_exam()
@@ -519,7 +519,7 @@ elif page == "🏠 Home" and st.session_state.current_view == "home":
                             if not exam["isPublished"]:
                                 if st.button("🚀 Publish", key=f"publish_{exam['id']}"):
                                     try:
-                                        res = requests.put(f"{API_URL}/teacher/exams/{exam['id']}/publish")
+                                        res = requests.put(f"{API_URL}/exam/exams/{exam['id']}/publish")
                                         if res.status_code == 200:
                                             st.success("Exam published successfully!")
                                             st.rerun()
@@ -530,7 +530,7 @@ elif page == "🏠 Home" and st.session_state.current_view == "home":
                             else:
                                 if st.button("📤 Unpublish", key=f"unpublish_{exam['id']}"):
                                     try:
-                                        res = requests.put(f"{API_URL}/teacher/exams/{exam['id']}/publish", json={"isPublished": False})
+                                        res = requests.put(f"{API_URL}/exam/exams/{exam['id']}/publish", json={"isPublished": False})
                                         if res.status_code == 200:
                                             st.success("Exam unpublished successfully!")
                                             st.rerun()
@@ -550,7 +550,7 @@ elif page == "🏠 Home" and st.session_state.current_view == "home":
                         if exam["status"] != "live":
                             if st.button("❌ Delete", key=f"delete_{exam['id']}"):
                                 try:
-                                    res = requests.delete(f"{API_URL}/teacher/exams/{exam['id']}")
+                                    res = requests.delete(f"{API_URL}/exam/exams/{exam['id']}")
                                     if res.status_code == 200:
                                         st.success("Exam deleted successfully!")
                                         st.rerun()
@@ -572,7 +572,7 @@ elif page == "🏠 Home" and st.session_state.current_view == "home":
 
         # Classes Section
         st.subheader("🏫 Classes Taking This Subject")
-        classes = fetch_data(f"{API_URL}/teacher/subject-classes", params={"subject_id": subject['id']})
+        classes = fetch_data(f"{API_URL}/classes/subject-classes", params={"subject_id": subject['id']})
         if not classes:
             st.info("No classes found.")
         else:
@@ -609,7 +609,7 @@ elif page == "🏠 Home" and st.session_state.current_view == "home":
         st.header(f"👥 {class_name} ({class_id}) - {subject['name']}")
 
         # Fetching students data
-        students = fetch_data(f"{API_URL}/student/students/by-class", params={"class_id": class_id})
+        students = fetch_data(f"{API_URL}/classes/students/by-class", params={"class_id": class_id})
 
         if not students:
             st.info("No students found.")
@@ -618,7 +618,7 @@ elif page == "🏠 Home" and st.session_state.current_view == "home":
             
             for student in students:
                 # Fetching individual student results using student_id and subject_id
-                student_results = fetch_data(f"{API_URL}/student/results", params={"student_id": student['id'], "subject_id": subject['id']}) or []
+                student_results = fetch_data(f"{API_URL}/exam/results", params={"student_id": student['id'], "subject_id": subject['id']}) or []
 
                 with st.expander(f"👤 {student['name']} ({student['rollNumber']})"):
                     if student_results:
@@ -634,14 +634,14 @@ elif page == "🏠 Home" and st.session_state.current_view == "home":
 
                             if st.button("📄 View Responses", key=button_key):
                                 responses = fetch_data(
-                                    f"{API_URL}/student/responses",
+                                    f"{API_URL}/response/responses",
                                     params={"student_id": student['id'], "exam_id": r['examId']}
                                 )
 
                                 if responses:
                                     st.markdown("#### 📝 Responses")
                                     for q in responses:
-                                        question_text = get_question_text(q.get("questionId"))
+                                        question_text = get_question_text(q.get("id"))
                                         st.markdown(f"**Q:** {question_text}")
 
                                         if q["type"] == "MCQ":

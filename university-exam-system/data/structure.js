@@ -113,7 +113,7 @@ Structure:
   "_id": ObjectId,                // Unique identifier for the question
   "examId": ObjectId,             // Exam ID this question belongs to
   "questionText": String,         // Text of the question
-  "questionType": String,         // Type of the question ('MCQ', 'Long format')
+  "type": String,         // Type of the question ('MCQ', 'Long format')
   "options": [String],            // Options for MCQ (optional for long-format)
   "correctAnswer": String         // Correct answer for the question
 }
@@ -123,7 +123,7 @@ Example Document:
   "_id": ObjectId("5f1b2b3a4c3e1a0dce78a3b8"),
   "examId": ObjectId("5f1b2b3a4c3e1a0dce78a3b7"),  // Exam ID (Midterm Exam)
   "questionText": "What is 2 + 2?",
-  "questionType": "MCQ",
+  "type": "MCQ",
   "options": ["3", "4", "5", "6"],
   "correctAnswer": "4"
 }
@@ -137,7 +137,7 @@ Structure:
   "_id": ObjectId,                // Unique identifier for the response
   "studentId": ObjectId,          // Student ID who answered the question
   "examId": ObjectId,             // Exam ID this response is for
-  "questionId": ObjectId,         // Question ID that was answered
+  "id": ObjectId,                // Question ID that was answered
   "answer": String,               // Answer provided by the student
   "marks": Integer,               // Marks awarded for this answer (calculated after evaluation)
   "isReval": Boolean              // Indicates if the answer is under re-evaluation
@@ -148,7 +148,7 @@ Example Document:
   "_id": ObjectId("5f1b2b3a4c3e1a0dce78a3b9"),
   "studentId": ObjectId("5f1b2b3a4c3e1a0dce78a3b1"),  // Student ID (John Doe)
   "examId": ObjectId("5f1b2b3a4c3e1a0dce78a3b7"),     // Exam ID (Midterm Exam)
-  "questionId": ObjectId("5f1b2b3a4c3e1a0dce78a3b8"), // Question ID (What is 2 + 2?)
+  "id": ObjectId("5f1b2b3a4c3e1a0dce78a3b8"), // Question ID (What is 2 + 2?)
   "answer": "4",                                    // Student's answer
   "marks": 1,                                      // Marks awarded for the correct answer
   "isReval": false                                  // Answer is not under re-evaluation
@@ -163,7 +163,7 @@ Structure:
   "_id": ObjectId,                // Unique identifier for the revaluation request
   "studentId": ObjectId,          // Student ID who requested re-evaluation
   "examId": ObjectId,             // Exam ID for the re-evaluation request
-  "questionId": ObjectId,         // Question ID for the re-evaluation request
+  "id": ObjectId,         // Question ID for the re-evaluation request
   "status": String,               // Status of the revaluation ('pending', 'approved', 'denied')
   "reason": String                // Reason for re-evaluation request
 }
@@ -173,7 +173,7 @@ Example Document:
   "_id": ObjectId("5f1b2b3a4c3e1a0dce78a3ba"),
   "studentId": ObjectId("5f1b2b3a4c3e1a0dce78a3b1"),  // Student ID (John Doe)
   "examId": ObjectId("5f1b2b3a4c3e1a0dce78a3b7"),     // Exam ID (Midterm Exam)
-  "questionId": ObjectId("5f1b2b3a4c3e1a0dce78a3b8"), // Question ID (What is 2 + 2?)
+  "id": ObjectId("5f1b2b3a4c3e1a0dce78a3b8"), // Question ID (What is 2 + 2?)
   "status": "pending",                                 // Revaluation request status
   "reason": "The answer should be considered correct due to ambiguous wording"
 }

@@ -262,11 +262,19 @@ def get_exams_by_subject(subject_id: str):
         for exam in exams
     ]
 
+from fastapi import FastAPI, HTTPException, Query
+from datetime import datetime
+
 @app.post("/exams/finalize-results")
 def finalize_exam_results(exam_id: str = Query(...)):
     student_ids = db.responses.distinct("studentId", {"examId": exam_id})
     questions = list(db.questions.find({"examId": exam_id}))
     question_map = {str(q["_id"]): q for q in questions}
+
+    # 🔍 Fetch grade boundaries from config
+    config = db.config.find_one({"_id": "grade_boundaries"})
+    if not config:
+        raise HTTPException(status_code=500, detail="Grade boundaries not configured")
 
     for student_id in student_ids:
         responses = list(db.responses.find({"examId": exam_id, "studentId": student_id}))
@@ -278,14 +286,23 @@ def finalize_exam_results(exam_id: str = Query(...)):
             q = question_map.get(str(r["id"]))
             if not q:
                 continue
-            total += r.get("marksAwarded") or 0
+            total += r.get("marksAwarded", 0)
             max_marks += q.get("marks", 0)
 
         if max_marks == 0:
             continue
 
         percentage = (total / max_marks) * 100
-        grade = "A" if percentage >= 80 else "B" if percentage >= 60 else "C"
+
+        # 🎯 Grade logic using dynamic config
+        if percentage >= config.get("A", 80):
+            grade = "A"
+        elif percentage >= config.get("B", 60):
+            grade = "B"
+        elif percentage >= config.get("C", 40):
+            grade = "C"
+        else:
+            grade = "F"
 
         db.results.update_one(
             {"studentId": student_id, "examId": exam_id},
@@ -299,13 +316,43 @@ def finalize_exam_results(exam_id: str = Query(...)):
             upsert=True
         )
 
-        # ✅ After storing results, update the exam status
-        db.exams.update_one(
-            {"_id": exam_id},
-            {"$set": {"status": "ended"}}
-        )
+    # ✅ Mark exam as ended
+    db.exams.update_one(
+        {"_id": exam_id},
+        {"$set": {"status": "ended"}}
+    )
 
     return {"message": "Results finalized and stored successfully!"}
+
+from pydantic import BaseModel
+from fastapi import Body
+
+class GradeBoundaries(BaseModel):
+    A: int
+    B: int
+    C: int
+
+@app.put("/config/grade-boundaries")
+def update_grade_boundaries(boundaries: GradeBoundaries = Body(...)):
+    result = db.config.update_one(
+        {"_id": "grade_boundaries"},
+        {"$set": boundaries.dict()},
+        upsert=True
+    )
+    return {"message": "Grade boundaries updated."}
+
+@app.get("/config/grade-boundaries")
+def get_grade_boundaries():
+    config = db.config.find_one({"_id": "grade_boundaries"})
+    if not config:
+        raise HTTPException(status_code=404, detail="Grade boundaries not found")
+    
+    return {
+        "A": config.get("A", 80),
+        "B": config.get("B", 60),
+        "C": config.get("C", 40)
+    }
+
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8002, reload=True)

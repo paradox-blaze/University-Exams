@@ -314,3 +314,10 @@ const stories = [
 ];
 
 db.stories.insertMany(stories);
+
+db.config.insertOne({
+  _id: "grade_boundaries",
+  A: 80,
+  B: 60,
+  C: 40
+});

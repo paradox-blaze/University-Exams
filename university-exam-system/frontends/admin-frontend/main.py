@@ -52,7 +52,8 @@ page = st.sidebar.selectbox("Choose Action", [
     "📝 Exams",
     "📘 Subjects",
     "📖 Stories",
-    "📬 Requests"
+    "📬 Requests",
+    "🎯 Grading Config"
 ])
 
 # 1. Teachers Section
@@ -385,3 +386,33 @@ elif page == "📬 Requests":
             st.error("Failed to fetch requests.")
     except Exception as e:
         st.error(f"Error fetching requests: {e}")
+
+# 8. Grading Config Section
+elif page == "🎯 Grading Config":
+    st.subheader("🎯 Grading Configuration")
+
+    res = requests.get(f"{API_URL}/exam/config/grade-boundaries")
+    if res.status_code == 200:
+        current = res.json()
+        st.write("📊 Current Grade Boundaries")
+        st.table([
+            {"Grade": "A", "Minimum %": current.get("A", 80)},
+            {"Grade": "B", "Minimum %": current.get("B", 60)},
+            {"Grade": "C", "Minimum %": current.get("C", 40)}
+        ])
+    else:
+        st.warning("Could not fetch current grade boundaries.")
+        current = {"A": 80, "B": 60, "C": 40}
+
+    st.markdown("### ✏️ Update Grade Thresholds")
+    a = st.number_input("Minimum % for Grade A", value=current.get("A", 80), min_value=0, max_value=100)
+    b = st.number_input("Minimum % for Grade B", value=current.get("B", 60), min_value=0, max_value=100)
+    c = st.number_input("Minimum % for Grade C", value=current.get("C", 40), min_value=0, max_value=100)
+
+    if st.button("🔄 Update Grade Boundaries"):
+        update_res = requests.put(f"{API_URL}/exam/config/grade-boundaries", json={"A": a, "B": b, "C": c})
+        if update_res.status_code == 200:
+            st.success("Grade boundaries updated successfully!")
+            st.rerun()
+        else:
+            st.error("Failed to update grade boundaries.")
